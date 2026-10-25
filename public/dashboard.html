@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Freund | Panel administrativo</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #f1f5f9;
+      font-family: Arial, sans-serif;
+      color: #0f172a;
+    }
+    header {
+      background: #1d4ed8;
+      color: white;
+      padding: 20px 6%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    main { max-width: 1000px; margin: 35px auto; padding: 0 20px; }
+    .card {
+      background: white;
+      padding: 25px;
+      border-radius: 12px;
+      margin-bottom: 22px;
+      box-shadow: 0 3px 15px #0001;
+    }
+    input {
+      padding: 11px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      margin: 5px;
+    }
+    button {
+      padding: 11px 17px;
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    th, td {
+      padding: 13px;
+      text-align: left;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    th { background: #f8fafc; }
+    #mensaje { color: #b91c1c; }
+  </style>
+
+<style>
+  .btn-editar {
+    background: #d97706;
+    margin: 3px;
+  }
+
+  .btn-eliminar {
+    background: #dc2626;
+    margin: 3px;
+  }
+
+  .btn-cancelar {
+    background: #64748b;
+    margin: 3px;
+  }
+
+  button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  button[hidden] {
+    display: none;
+  }
+
+  td:last-child {
+    white-space: nowrap;
+  }
+
+  .tabla-contenedor {
+    overflow-x: auto;
+  }
+</style>
+
+</head>
+<body>
+  <header>
+    <strong>Freund | Administración</strong>
+    <button id="salir">Cerrar sesión</button>
+  </header>
+
+  <main>
+    <h1>Panel de productos</h1>
+    <p>Node.js + Express + PostgreSQL | Kubernetes PaaS</p>
+
+    <div class="card">
+      <h2 id="tituloFormulario">Registrar producto</h2>
+      <form id="productoForm">
+        <input name="nombre" placeholder="Nombre del producto" required>
+        <input name="precio" type="number" step="0.01"
+               min="0" placeholder="Precio ($)" required>
+        <button id="guardar" type="submit">Guardar producto</button>
+        <button id="cancelar" class="btn-cancelar" type="button" hidden>Cancelar edición</button>
+      </form>
+      <p id="mensaje"></p>
+    </div>
+
+    <div class="card">
+      <h2>Productos registrados</h2>
+      <table>
+        <thead>
+          <tr><th>ID</th><th>Producto</th><th>Precio</th><th>Acciones</th></tr>
+        </thead>
+        <tbody id="productos"></tbody>
+      </table>
+    </div>
+  </main>
+
+  
+<script>
+  const formulario = document.getElementById("productoForm");
+  const mensaje = document.getElementById("mensaje");
+  const tituloFormulario = document.querySelector("#tituloFormulario");
+  const botonGuardar = document.getElementById("guardar");
+  const botonCancelar = document.getElementById("cancelar");
+
+  let productoEditando = null;
+
+  function mostrarMensaje(texto, error = false) {
+    mensaje.textContent = texto;
+    mensaje.style.color = error ? "#b91c1c" : "#15803d";
+  }
+
+  function cancelarEdicion() {
+    productoEditando = null;
+    formulario.reset();
+    tituloFormulario.textContent = "Registrar producto";
+    botonGuardar.textContent = "Guardar producto";
+    botonCancelar.hidden = true;
+  }
+
+  async function solicitar(url, opciones = {}) {
+    const respuesta = await fetch(url, opciones);
+
+    if (respuesta.status === 401) {
+      window.location.replace("/");
+      throw new Error("Sesión expirada");
+    }
+
+    const datos = await respuesta.json();
+
+    if (!respuesta.ok) {
+      throw new Error(datos.error || "Error en la operación");
+    }
+
+    return datos;
+  }
+
+  async function cargarProductos() {
+    const productos = await solicitar("/api/productos");
+    const tabla = document.getElementById("productos");
+
+    tabla.replaceChildren();
+
+    for (const producto of productos) {
+      const fila = document.createElement("tr");
+
+      const celdaId = document.createElement("td");
+      celdaId.textContent = producto.id;
+
+      const celdaNombre = document.createElement("td");
+      celdaNombre.textContent = producto.nombre;
+
+      const celdaPrecio = document.createElement("td");
+      celdaPrecio.textContent =
+        "$" + Number(producto.precio).toFixed(2);
+
+      const acciones = document.createElement("td");
+
+      const editar = document.createElement("button");
+      editar.type = "button";
+      editar.textContent = "Editar";
+      editar.className = "btn-editar";
+
+      editar.addEventListener("click", () => {
+        productoEditando = producto.id;
+
+        formulario.elements.nombre.value = producto.nombre;
+        formulario.elements.precio.value =
+          Number(producto.precio).toFixed(2);
+
+        tituloFormulario.textContent = "Editar producto";
+        botonGuardar.textContent = "Actualizar producto";
+        botonCancelar.hidden = false;
+
+        mostrarMensaje("");
+        formulario.scrollIntoView({
+          behavior: "smooth",
+          block: "center"
+        });
+      });
+
+      const eliminar = document.createElement("button");
+      eliminar.type = "button";
+      eliminar.textContent = "Eliminar";
+      eliminar.className = "btn-eliminar";
+
+      eliminar.addEventListener("click", async () => {
+        if (!confirm(
+          `¿Seguro que deseas eliminar "${producto.nombre}"?`
+        )) {
+          return;
+        }
+
+        try {
+          await solicitar(`/api/productos/${producto.id}`, {
+            method: "DELETE"
+          });
+
+          if (productoEditando === producto.id) {
+            cancelarEdicion();
+          }
+
+          await cargarProductos();
+          mostrarMensaje("Producto eliminado correctamente");
+        } catch (error) {
+          mostrarMensaje(error.message, true);
+        }
+      });
+
+      acciones.append(editar, eliminar);
+      fila.append(celdaId, celdaNombre, celdaPrecio, acciones);
+      tabla.appendChild(fila);
+    }
+  }
+
+  formulario.addEventListener("submit", async (evento) => {
+    evento.preventDefault();
+
+    const datos = Object.fromEntries(new FormData(formulario));
+
+    const editando = productoEditando !== null;
+
+    const url = editando
+      ? `/api/productos/${productoEditando}`
+      : "/api/productos";
+
+    const metodo = editando ? "PUT" : "POST";
+
+    botonGuardar.disabled = true;
+
+    try {
+      await solicitar(url, {
+        method: metodo,
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(datos)
+      });
+
+      cancelarEdicion();
+      await cargarProductos();
+
+      mostrarMensaje(
+        editando
+          ? "Producto actualizado correctamente"
+          : "Producto registrado correctamente"
+      );
+    } catch (error) {
+      mostrarMensaje(error.message, true);
+    } finally {
+      botonGuardar.disabled = false;
+    }
+  });
+
+  botonCancelar.addEventListener("click", () => {
+    cancelarEdicion();
+    mostrarMensaje("");
+  });
+
+  document.getElementById("salir")
+    .addEventListener("click", async () => {
+      try {
+        await solicitar("/api/logout", {
+          method: "POST"
+        });
+      } finally {
+        window.location.replace("/");
+      }
+    });
+
+  (async () => {
+    try {
+      await solicitar("/api/session");
+      await cargarProductos();
+    } catch (error) {
+      mostrarMensaje(error.message, true);
+    }
+  })();
+</script>
+
+</body>
+</html>

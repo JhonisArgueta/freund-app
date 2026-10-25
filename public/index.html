@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Freund | Iniciar sesión</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #f1f5f9;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 0;
+    }
+    .login {
+      background: white;
+      padding: 36px;
+      border-radius: 14px;
+      width: 350px;
+      max-width: 92%;
+      box-shadow: 0 8px 30px #0001;
+    }
+    h1 { color: #1d4ed8; margin-bottom: 5px; }
+    p { color: #64748b; }
+    input, button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 12px;
+      border-radius: 7px;
+      font-size: 15px;
+    }
+    input { border: 1px solid #cbd5e1; }
+    button {
+      background: #2563eb;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover { background: #1d4ed8; }
+    #mensaje { color: #dc2626; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="login">
+    <h1>Freund</h1>
+    <p>Plataforma empresarial</p>
+    <h2>Iniciar sesión</h2>
+    <form id="loginForm">
+      <input name="usuario" placeholder="Usuario" required>
+      <input name="password" type="password"
+             placeholder="Contraseña" required>
+      <button type="submit">Ingresar</button>
+    </form>
+    <p id="mensaje"></p>
+    <small>Node.js + Express + PostgreSQL</small>
+  </div>
+
+  <script>
+    document.getElementById("loginForm")
+      .addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const form = new FormData(e.target);
+
+        try {
+          const response = await fetch("/api/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(Object.fromEntries(form))
+          });
+
+          const data = await response.json();
+
+          if (response.ok) {
+            window.location.href = "/dashboard";
+          } else {
+            document.getElementById("mensaje").textContent =
+              data.error || "Error de autenticación";
+          }
+        } catch {
+          document.getElementById("mensaje").textContent =
+            "No se pudo conectar con el servidor";
+        }
+      });
+  </script>
+</body>
+</html>
